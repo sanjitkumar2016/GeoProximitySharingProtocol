@@ -16,12 +16,17 @@ class ServerStore:
         Args:
             zmq_port (int, optional): Port number for ZeroMQ listener to bind to. Defaults to 5555.
         """
+        # ServerStore attributes
         self.keys = {}
         self.ports = {}
+
+        # Message Queue
         self.zmq_port = zmq_port
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REP)
         self.socket.bind(f"tcp://*:{self.zmq_port}")
+
+        # Start the listener thread
         self.listener_thread = Thread(target=self._listen_for_keys)
         self.listener_thread.daemon = True
         self.listener_thread.start()
