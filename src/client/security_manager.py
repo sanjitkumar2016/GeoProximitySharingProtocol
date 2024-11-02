@@ -6,7 +6,6 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 class SecurityManager:
     def __init__(self):
-        self._hash = None
         self._private_key = None
         self.private_pem = None
         self.public_pem = None

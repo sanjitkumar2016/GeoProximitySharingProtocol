@@ -35,8 +35,7 @@ class UserComms:
         """
         self.friend_requests[data["user"]] = data["shared_secret_half"]
         logger.info(
-            "%s: %s: Friend request stored from %s",
-            self.username,
+            "%s: Friend request stored from %s",
             self.username,
             data["user"],
         )

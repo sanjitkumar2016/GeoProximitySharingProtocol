@@ -17,6 +17,7 @@ class ServerStore:
             zmq_port (int, optional): Port number for ZeroMQ listener to bind to. Defaults to 5555.
         """
         # ServerStore attributes
+        self.ids = {}
         self.keys = {}
         self.ports = {}
 

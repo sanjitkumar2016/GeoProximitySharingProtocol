@@ -18,7 +18,7 @@ class Client:
     ):
         # Initialize client attributes
         self.username = username
-        self.friends = {}  # {username: shared_secret}
+        self.friends = {}  # {id: shared_secret}
         self.context = zmq.Context()
         self.recv_port = recv_port
 
