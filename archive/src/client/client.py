@@ -3,9 +3,9 @@ import logging
 
 import zmq
 
-from src.client.server_comms import ServerComms
-from src.client.user_comms import UserComms
-from src.client.security_manager import SecurityManager
+from archive.src.client.server_comms import ServerComms
+from archive.src.client.user_comms import UserComms
+from archive.src.client.security_manager import SecurityManager
 
 # Configure the logger
 logging.basicConfig(level=logging.INFO)
