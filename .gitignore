@@ -1,8 +1,9 @@
-# Byte-compiled / optimized / DLL files / MacOS metadata
+# Byte-compiled / optimized / DLL files / MacOS metadata / Key files
 __pycache__/
 *.py[cod]
 *$py.class
 .DS_Store
+*.pem
 
 # C extensions
 *.so
