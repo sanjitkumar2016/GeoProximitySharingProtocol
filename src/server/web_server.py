@@ -1,7 +1,7 @@
-from flask import Flask, request, jsonify
-
 import ipaddress
 import logging
+
+from flask import Flask, jsonify, request
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,14 +33,26 @@ class WebServer:
             host = query_params.get("host")
             port = query_params.get("port")
 
+            authorization = request.headers.get("Authorization")
+            if not authorization:
+                return "PublicKey required", 401
+            if not authorization.startswith("PublicKey "):
+                return "Invalid authorization header", 401
+            print(authorization)
+            public_key = authorization[10:]
+
             if not username or not username.isalpha():
                 return "Invalid username", 400
-            if not host or not isinstance(host, str) or not ipaddress.ip_address(host):
+            if not host or not isinstance(host, str) or not ipaddress.ip_address(host):  # noqa: E501
                 return "Invalid host", 400
             if not port or not port.isdigit():
                 return "Invalid port", 400
+            if not public_key:
+                return "Invalid public key", 400
 
-            auth_token = self.server_store.post_create_user(username, host, port)
+            auth_token = self.server_store.post_create_user(
+                username, host, port, public_key
+            )
             if not auth_token:
                 return "User already exists", 400
 
@@ -72,7 +84,7 @@ class WebServer:
         @app.route("/address_request", methods=["GET"])
         def address_request():
             query_params = request.args
-            logger.debug("Handling address request with params: %s", query_params)
+            logger.debug("Handling address request with params: %s", query_params)  # noqa: E501
             username = query_params.get("username")
 
             authorization = request.headers.get("Authorization")
@@ -82,7 +94,7 @@ class WebServer:
                 return "Invalid authorization header", 401
             auth_token = bytes.fromhex(authorization[7:])
 
-            address = self.server_store.get_address_request(auth_token, username)
+            address = self.server_store.get_address_request(auth_token, username)  # noqa: E501
             if not address:
                 return "Bad address request", 400
 

@@ -1,41 +1,48 @@
-import secrets
 import hashlib
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives import padding
+import secrets
+
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+
+SALT_LENGTH = 16
+KEY_LENGTH = 32
+BLOCK_SIZE = 128
+
 
 class ServerCrypto:
     def __init__(self):
-        self.salt_length = 16
-        self.key_length = 32
-        self.block_size = 128  # AES block size in bits
+        self._salt = secrets.token_bytes(SALT_LENGTH)
+        self._key = secrets.token_bytes(KEY_LENGTH)
 
-    def create_salt(self):
-        return secrets.token_bytes(self.salt_length)
-
-    def create_symmetric_key(self):
-        return secrets.token_bytes(self.key_length)
-
-    def hash_data(self, data, salt=b""):
+    def hash_data(self, data):
         h = hashlib.new('sha256')
-        h.update(data.encode() + salt)
+        h.update(data.encode() + self._salt)
         return h.digest()
 
-    def encrypt_data(self, data, key):
+    def encrypt_data(self, data):
         iv = secrets.token_bytes(16)
-        cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+        cipher = Cipher(
+            algorithms.AES(self._key),
+            modes.CBC(iv),
+            backend=default_backend()
+        )
         encryptor = cipher.encryptor()
-        padder = padding.PKCS7(self.block_size).padder()
+        padder = padding.PKCS7(BLOCK_SIZE).padder()
         padded_data = padder.update(data.encode()) + padder.finalize()
         ct = encryptor.update(padded_data) + encryptor.finalize()
         return iv + ct
 
-    def decrypt_data(self, data, key):
+    def decrypt_data(self, data):
         iv = data[:16]
         ct = data[16:]
-        cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+        cipher = Cipher(
+            algorithms.AES(self._key),
+            modes.CBC(iv),
+            backend=default_backend()
+        )
         decryptor = cipher.decryptor()
         padded_data = decryptor.update(ct) + decryptor.finalize()
-        unpadder = padding.PKCS7(self.block_size).unpadder()
+        unpadder = padding.PKCS7(BLOCK_SIZE).unpadder()
         pt = unpadder.update(padded_data) + unpadder.finalize()
         return pt.decode()
