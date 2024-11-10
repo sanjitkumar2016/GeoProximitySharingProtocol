@@ -42,7 +42,7 @@ class UserComms:
 
     def send_message(self, port, message):
         """
-        Sends a message to the specified port on localhost.
+        Sends a message to the specified port on 127.0.0.1.
 
         Args:
             port (int): The port number of the recipient.
@@ -52,7 +52,7 @@ class UserComms:
             Exception: If there is an error in connecting, sending, or disconnecting the socket.
         """
 
-        address = f"tcp://localhost:{port}"
+        address = f"tcp://127.0.0.1:{port}"
         self.send_socket.connect(address)
         logger.debug("%s: Connected to address: %s", self.username, address)
         logger.info("%s: Sending message: %s", self.username, message)

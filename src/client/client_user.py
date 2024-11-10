@@ -1,27 +1,57 @@
-import asyncio
+import requests
+import logging
+import ipaddress
 
-from aiortc.contrib.signaling import TcpSocketSignaling
-
-from src.client.webrtc_client import WebRTCClient
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class ClientUser:
-    def __init__(self, username, host="localhost", port=8080):
+    def __init__(
+        self,
+        username: str,
+        host: str,
+        port: int,
+        server_host: str = "127.0.0.1",
+        server_port: int = 8080,
+    ):
+        if not username or not isinstance(username, str) or not username.isalpha():
+            raise ValueError("Invalid username")
+        if not host or not isinstance(host, str) or not ipaddress.ip_address(host):
+            raise ValueError("Invalid host")
+        if not port or not isinstance(port, int) or port < 0 or port > 65535:
+            raise ValueError("Invalid port")
+
         self.username = username
         self.host = host
         self.port = port
-        self.signaling = TcpSocketSignaling(self.host, self.port)
-        self.client = WebRTCClient(self.signaling, self.username)
-        self.start()
+        self.server_host = server_host
+        self.server_port = server_port
+        self._post_create_user()
 
-    async def run(self):
-        await self.client.connect()
-        await self.client.send_message("Hello, peer!")
-        await self.client.close()
+        self.friends = set()
+        self.friend_requests = set()
 
-    def start(self):
-        loop = asyncio.get_event_loop()
+    def _post_create_user(self):
+        url = f"https://{self.server_host}:{self.server_port}/create_user"
+        params = {"username": self.username, "host": self.host, "port": self.port}
         try:
-            loop.run_until_complete(self.run())
-        except KeyboardInterrupt:
-            loop.run_until_complete(self.client.close())
+            # trunk-ignore(bandit/B501)
+            response = requests.post(url, params=params, verify=False, timeout=5)
+            response.raise_for_status()
+            self.auth_token = response.json().get("auth_token")
+            logger.info("Success! %s", response.json().get("message"))
+        except requests.exceptions.RequestException as e:
+            logger.info("Failed to create user: %s - %s", e, response.text)
+
+    def add_friend(self, friend_username):
+        # Method to send a friend request to another user
+        pass
+
+    def accept_friend_request(self, friend_username):
+        # Method to accept a friend request from another user
+        pass
+
+    def send_message(self, friend_username, message):
+        # Method to send a message to a friend
+        pass

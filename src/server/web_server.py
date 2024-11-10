@@ -1,18 +1,19 @@
-from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import urlparse, parse_qs
-import ssl
+from flask import Flask, request, jsonify
 
+import ipaddress
 import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+app = Flask(__name__)
 
 
 class WebServer:
     def __init__(
         self,
         server_store,
-        host="localhost",
+        host="127.0.0.1",
         port=8080,
         certfile="cert.pem",
         keyfile="key.pem",
@@ -23,70 +24,76 @@ class WebServer:
         self.certfile = certfile
         self.keyfile = keyfile
 
-    class RequestHandler(BaseHTTPRequestHandler):
-        def __init__(self, *args, **kwargs):
-            self.server_store = kwargs.pop("server_store")
-            super().__init__(*args, **kwargs)
+        @app.route("/create_user", methods=["POST"])
+        def create_user():
+            query_params = request.args
+            logger.debug("Handling create user with params: %s", query_params)
 
-        def do_POST(self):
-            logger.info("POST request received")
-            content_length = int(self.headers["Content-Length"])
-            post_data = self.rfile.read(content_length)
+            username = query_params.get("username")
+            host = query_params.get("host")
+            port = query_params.get("port")
 
-            parsed_path = urlparse(self.path)
-            path = parsed_path.path
-            query_params = parse_qs(parsed_path.query)
+            if not username or not username.isalpha():
+                return "Invalid username", 400
+            if not host or not isinstance(host, str) or not ipaddress.ip_address(host):
+                return "Invalid host", 400
+            if not port or not port.isdigit():
+                return "Invalid port", 400
 
-            if path == "/create_user":
-                self.handle_create_user(query_params)
-            else:
-                self.handle_not_found()
+            auth_token = self.server_store.post_create_user(username, host, port)
+            if not auth_token:
+                return "User already exists", 400
 
-            self.end_headers()
-            response = f"POST request received: {post_data.decode()}"
-            self.wfile.write(response.encode())
+            response = {
+                "message": f"User {username} created at address {host}:{port}",
+                "auth_token": auth_token.hex(),
+            }
+            return jsonify(response), 201
 
-        def do_GET(self):
-            logger.info("GET request received")
-            parsed_path = urlparse(self.path)
-            path = parsed_path.path
-            query_params = parse_qs(parsed_path.query)
+        @app.route("/add_friend", methods=["POST"])
+        def add_friend():
+            query_params = request.args
+            logger.debug("Handling add friend with params: %s", query_params)
+            username = query_params.get("username")
 
-            if path == "/port_request":
-                self.handle_port_request(query_params)
-            else:
-                self.handle_not_found()
+            authorization = request.headers.get("Authorization")
+            if not authorization:
+                return "Unauthorized", 401
+            if not authorization.startswith("Bearer "):
+                return "Invalid authorization header", 401
+            auth_token = bytes.fromhex(authorization[7:])
 
-        def handle_create_user(self, query_params):
-            pass
+            success = self.server_store.post_add_friend(auth_token, username)
+            if not success:
+                return "Bad friend request", 400
 
-        def handle_port_request(self, query_params):
-            print(query_params)
-            self.send_response(200)
-            self.end_headers()
-            data = "testing\n"
-            response = f"Data: {data}"
-            self.wfile.write(response.encode())
+            return f"Friend request sent to {username}", 200
 
-        def handle_not_found(self):
-            self.send_response(404)
-            self.end_headers()
-            response = "404 Not Found"
-            self.wfile.write(response.encode())
+        @app.route("/address_request", methods=["GET"])
+        def address_request():
+            query_params = request.args
+            logger.debug("Handling address request with params: %s", query_params)
+            username = query_params.get("username")
+
+            authorization = request.headers.get("Authorization")
+            if not authorization:
+                return "Unauthorized", 401
+            if not authorization.startswith("Bearer "):
+                return "Invalid authorization header", 401
+            auth_token = bytes.fromhex(authorization[7:])
+
+            address = self.server_store.get_address_request(auth_token, username)
+            if not address:
+                return "Bad address request", 400
+
+            response = {
+                "username": username,
+                "host": address.get("host"),
+                "port": address.get("port"),
+            }
+            return jsonify(response), 200
 
     def start(self):
-        server = HTTPServer(
-            (self.host, self.port),
-            lambda *args, **kwargs: self.RequestHandler(
-                *args, server_store=self.server_store, **kwargs
-            ),
-        )
-
-        # Create an SSL context
-        ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-        ssl_context.load_cert_chain(certfile=self.certfile, keyfile=self.keyfile)
-
-        # Wrap the server socket with SSL
-        server.socket = ssl_context.wrap_socket(server.socket, server_side=True)
-        logger.info("Starting server at http://%s:%d", self.host, self.port)
-        server.serve_forever()
+        context = (self.certfile, self.keyfile)
+        logger.info("Starting server at https://%s:%d", self.host, self.port)
+        app.run(host=self.host, port=self.port, ssl_context=context)

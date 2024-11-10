@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class Client:
     def __init__(
-        self, username: str, recv_port: int, server_address="tcp://localhost:5555"
+        self, username: str, recv_port: int, server_address="tcp://127.0.0.1:5555"
     ):
         # Initialize client attributes
         self.username = username
