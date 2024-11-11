@@ -1,3 +1,4 @@
+import json
 import threading
 
 import zmq
@@ -7,11 +8,12 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 
 class ZMQClient:
-    def __init__(self, host, port):
+    def __init__(self, client_user, host, port):
+        self.client_user = client_user
         self.context = zmq.Context()
         self.running = True
-        self.socket = self.context.socket(zmq.PULL)
-        self.socket.bind(f"tcp://{host}:{port}")
+        self.listen_socket = self.context.socket(zmq.PULL)
+        self.listen_socket.bind(f"tcp://{host}:{port}")
         self.thread = threading.Thread(target=self._receive_messages)
         self.thread.start()
 
@@ -30,17 +32,17 @@ class ZMQClient:
         )
 
     def send_message(self, host, port, message, recipient_public_key):
-        socket = self.context.socket(zmq.REQ)
+        socket = self.context.socket(zmq.PUSH)
         socket.connect(f"tcp://{host}:{port}")
 
         # Load recipient's public key
-        recipient_public_key = serialization.load_pem_public_key(
+        public_key = serialization.load_pem_public_key(
             recipient_public_key,
             backend=default_backend()
         )
 
         # Encrypt the message with the recipient's public key
-        encrypted_message = recipient_public_key.encrypt(
+        encrypted_message = public_key.encrypt(
             message.encode('utf-8'),
             padding.OAEP(
                 mgf=padding.MGF1(algorithm=hashes.SHA256()),
@@ -54,14 +56,22 @@ class ZMQClient:
     def _receive_messages(self):
         while self.running:
             try:
-                message = self.socket.recv(zmq.NOBLOCK)
+                message = self.listen_socket.recv()
                 self._parse_message(message)
             except zmq.Again:
                 continue
 
     def _parse_message(self, message):
         decrypted_message = self._decrypt_message(message)
-        print(f"Received message: {decrypted_message}")
+        message = json.loads(decrypted_message)
+
+        if "friend_request" in message:
+            requester = message["friend_request"]
+            self.client_user.handle_friend_request(requester)
+
+        elif "friend_request_accepted" in message:
+            friend_username = message["friend_request_accepted"]
+            self.client_user.friend_request_accepted(friend_username)
 
     def _decrypt_message(self, message):
         decrypted_message = self.private_key.decrypt(

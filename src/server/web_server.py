@@ -38,20 +38,19 @@ class WebServer:
                 return "PublicKey required", 401
             if not authorization.startswith("PublicKey "):
                 return "Invalid authorization header", 401
-            print(authorization)
             public_key = authorization[10:]
 
             if not username or not username.isalpha():
                 return "Invalid username", 400
             if not host or not isinstance(host, str) or not ipaddress.ip_address(host):  # noqa: E501
                 return "Invalid host", 400
-            if not port or not port.isdigit():
+            if not port or not port.isdigit() or int(port) < 0 or int(port) > 65535:  # noqa: E501
                 return "Invalid port", 400
             if not public_key:
                 return "Invalid public key", 400
 
             auth_token = self.server_store.post_create_user(
-                username, host, port, public_key
+                username, host, int(port), public_key
             )
             if not auth_token:
                 return "User already exists", 400
@@ -80,6 +79,25 @@ class WebServer:
                 return "Bad friend request", 400
 
             return f"Friend request sent to {username}", 200
+
+        @app.route("/accept_friend_request", methods=["POST"])
+        def accept_friend_request():
+            query_params = request.args
+            logger.debug("Handling accept friend request with params: %s", query_params)  # noqa: E501
+            username = query_params.get("username")
+
+            authorization = request.headers.get("Authorization")
+            if not authorization:
+                return "Unauthorized", 401
+            if not authorization.startswith("Bearer "):
+                return "Invalid authorization header", 401
+            auth_token = bytes.fromhex(authorization[7:])
+
+            success = self.server_store.post_accept_friend_request(auth_token, username)  # noqa: E501
+            if not success:
+                return "Bad friend request", 400
+
+            return f"Friend request accepted from {username}", 200
 
         @app.route("/address_request", methods=["GET"])
         def address_request():

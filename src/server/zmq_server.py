@@ -10,12 +10,12 @@ class ZMQServer:
 
     def send_message(self, host: str, port: int, message: str,
                      recipient_public_key: rsa.RSAPublicKey):
-        socket = self.context.socket(zmq.REQ)
+        socket = self.context.socket(zmq.PUSH)
         socket.connect(f"tcp://{host}:{port}")
 
         # Encrypt the message with the recipient's public key
         encrypted_message = recipient_public_key.encrypt(
-            message.encode('utf-8'),
+            message.encode("utf-8"),
             padding.OAEP(
                 mgf=padding.MGF1(algorithm=hashes.SHA256()),
                 algorithm=hashes.SHA256(),

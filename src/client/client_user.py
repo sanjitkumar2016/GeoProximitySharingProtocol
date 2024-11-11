@@ -1,9 +1,7 @@
-import base64
 import ipaddress
 import logging
 
-import requests
-
+from src.client.web_client import WebClient
 from src.client.zmq_client import ZMQClient
 
 logging.basicConfig(level=logging.INFO)
@@ -29,46 +27,58 @@ class ClientUser:
         self.username = username
         self.host = host
         self.port = port
-        self.server_host = server_host
-        self.server_port = server_port
-        self.zmq_client = ZMQClient(host, port)
-        self._post_create_user()
+        self._web_client = WebClient(self, server_host, server_port)
+        self._zmq_client = ZMQClient(self, host, port)
+        self._web_client.post_create_user(self._zmq_client.get_public_key())
 
-        self.friends: set[str] = set()
-        self.friend_requests: set[str] = set()
+        self._friends: set[str] = set()
+        self._outgoing_friend_requests: set[str] = set()
+        self._incoming_friend_requests: set[str] = set()
 
-    def _post_create_user(self):
-        url = f"https://{self.server_host}:{self.server_port}/create_user"
-        params = {
-            "username": self.username,
-            "host": self.host,
-            "port": self.port,
-        }
-        encoded_public_key = base64.b64encode(self.zmq_client.get_public_key()).decode("utf-8")  # noqa: E501
-        headers = {
-            "Authorization": f"PublicKey {encoded_public_key}",
-        }
-        response = None
-        try:
-            response = requests.post(
-                url, params=params, headers=headers, verify=False, timeout=5
-            )
-            response.raise_for_status()
-            self.auth_token = response.json().get("auth_token")
-            logger.info("Success! %s", response.json().get("message"))
-        except requests.exceptions.RequestException as e:
-            if response:
-                logger.info("Failed to create user: %s - %s", e, response.text)
-            raise e
+    @property
+    def friends(self):
+        return self._friends
 
-    def add_friend(self, friend_username):
-        # Method to send a friend request to another user
-        pass
+    def handle_friend_request(self, requester):
+        self._incoming_friend_requests.add(requester)
+        logger.info("Received friend request from '%s'", requester)
+
+    def add_friend(self, friend_username: str):
+        if friend_username in self._friends:
+            logger.info("Already friends with '%s'", friend_username)
+            return
+
+        if friend_username in self._outgoing_friend_requests:
+            logger.info("Friend request already sent to '%s'", friend_username)
+            return
+
+        if friend_username in self._incoming_friend_requests:
+            logger.info("Accepting friend request from '%s'", friend_username)
+            self.accept_friend_request(friend_username)
+            return
+
+        self._web_client.post_add_friend(friend_username)
+        self._outgoing_friend_requests.add(friend_username)
 
     def accept_friend_request(self, friend_username):
-        # Method to accept a friend request from another user
-        pass
+        if friend_username in self._friends:
+            logger.info("Already friends with '%s'", friend_username)
+            return
 
-    def send_message(self, friend_username, message):
-        # Method to send a message to a friend
-        pass
+        if friend_username not in self._incoming_friend_requests:
+            logger.info("No friend request from '%s'", friend_username)
+            return
+
+        self._web_client.post_accept_friend_request(friend_username)
+        self._incoming_friend_requests.remove(friend_username)
+        self._friends.add(friend_username)
+
+    def friend_request_accepted(self, friend_username):
+        self._outgoing_friend_requests.remove(friend_username)
+        self._friends.add(friend_username)
+        logger.info("Friend request accepted by '%s'", friend_username)
+
+    def request_location(self, friend_username):
+        if friend_username not in self._friends:
+            logger.info("Not friends with '%s'", friend_username)
+            return
