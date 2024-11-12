@@ -1,5 +1,6 @@
 import ipaddress
 import logging
+from base64 import b64decode, b64encode
 
 from flask import Flask, jsonify, request
 
@@ -27,7 +28,7 @@ class WebServer:
         @app.route("/create_user", methods=["POST"])
         def create_user():
             query_params = request.args
-            logger.debug("Handling create user with params: %s", query_params)
+            logger.info("Handling create user with params: %s", query_params)
 
             username = query_params.get("username")
             host = query_params.get("host")
@@ -38,7 +39,7 @@ class WebServer:
                 return "PublicKey required", 401
             if not authorization.startswith("PublicKey "):
                 return "Invalid authorization header", 401
-            public_key = authorization[10:]
+            public_key = b64decode(authorization[10:])
 
             if not username or not username.isalpha():
                 return "Invalid username", 400
@@ -64,7 +65,7 @@ class WebServer:
         @app.route("/add_friend", methods=["POST"])
         def add_friend():
             query_params = request.args
-            logger.debug("Handling add friend with params: %s", query_params)
+            logger.info("Handling add friend with params: %s", query_params)
             username = query_params.get("username")
 
             authorization = request.headers.get("Authorization")
@@ -83,7 +84,7 @@ class WebServer:
         @app.route("/accept_friend_request", methods=["POST"])
         def accept_friend_request():
             query_params = request.args
-            logger.debug("Handling accept friend request with params: %s", query_params)  # noqa: E501
+            logger.info("Handling accept friend request with params: %s", query_params)  # noqa: E501
             username = query_params.get("username")
 
             authorization = request.headers.get("Authorization")
@@ -102,7 +103,7 @@ class WebServer:
         @app.route("/address_request", methods=["GET"])
         def address_request():
             query_params = request.args
-            logger.debug("Handling address request with params: %s", query_params)  # noqa: E501
+            logger.info("Handling address request with params: %s", query_params)  # noqa: E501
             username = query_params.get("username")
 
             authorization = request.headers.get("Authorization")
@@ -116,11 +117,48 @@ class WebServer:
             if not address:
                 return "Bad address request", 400
 
+            host, port, public_key = address
+
             response = {
                 "username": username,
-                "host": address.get("host"),
-                "port": address.get("port"),
+                "host": host,
+                "port": port,
+                "public_key": b64encode(public_key).decode("utf-8"),
             }
+            return jsonify(response), 200
+
+        @app.route("/accept_location_request", methods=["POST"])
+        def accept_location_request():
+            query_params = request.args
+            logger.info("Handling accept location request with params: %s", query_params)  # noqa: E501
+            username = query_params.get("username")
+            latitude_hashes = b64decode(query_params.get("latitude_hashes")).decode("utf-8")  # noqa: E501
+            longitude_hashes = b64decode(query_params.get("longitude_hashes")).decode("utf-8")  # noqa: E501
+
+            authorization = request.headers.get("Authorization")
+            if not authorization:
+                return "Unauthorized", 401
+            if not authorization.startswith("Bearer "):
+                return "Invalid authorization header", 401
+            auth_token = bytes.fromhex(authorization[7:])
+
+            if not latitude_hashes or not longitude_hashes:
+                return "Bad location request", 400
+
+            rehashes = self.server_store.post_accept_location_request(
+                auth_token, username, latitude_hashes, longitude_hashes
+            )
+
+            if not rehashes:
+                return "Unable to rehash", 400
+
+            latitude_rehashes = rehashes["latitude_rehashes"]
+            longitude_rehashes = rehashes["longitude_rehashes"]
+            response = {
+                "latitude_rehashes": b64encode(latitude_rehashes).decode("utf-8"),  # noqa: E501
+                "longitude_rehashes": b64encode(longitude_rehashes).decode("utf-8"),  # noqa: E501
+            }
+
             return jsonify(response), 200
 
     def start(self):

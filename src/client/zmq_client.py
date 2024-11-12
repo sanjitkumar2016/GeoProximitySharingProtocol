@@ -20,7 +20,7 @@ class ZMQClient:
         # Generate public/private key pair
         self.private_key = rsa.generate_private_key(
             public_exponent=65537,
-            key_size=2048,
+            key_size=8192,
             backend=default_backend()
         )
         self.public_key = self.private_key.public_key()
@@ -72,6 +72,29 @@ class ZMQClient:
         elif "friend_request_accepted" in message:
             friend_username = message["friend_request_accepted"]
             self.client_user.friend_request_accepted(friend_username)
+
+        elif "location_request" in message:
+            friend_username = message["location_request"]
+            radius = message["radius"]
+            key = bytes.fromhex(message["key"])
+            self.client_user.handle_location_request(friend_username, radius, key)  # noqa: E501
+
+        elif "location_request_accepted" in message:
+            friend_username = message["location_request_accepted"]
+            key = message["key"]
+            self.client_user.location_request_accepted(friend_username, key)
+
+        elif "location_rehashes" in message:
+            friend_username = message["location_rehashes"]
+            latitude_rehashes = tuple(message["latitude_rehashes"])
+            longitude_rehashes = tuple(message["longitude_rehashes"])
+            self.client_user.handle_location_rehashes(
+                friend_username, latitude_rehashes, longitude_rehashes)
+
+        elif "location_rehashes_verified" in message:
+            friend_username = message["location_rehashes_verified"]
+            location_matches = message["location_matches"]
+            self.client_user.handle_location_rehashes_verified(friend_username, location_matches)  # noqa: E501
 
     def _decrypt_message(self, message):
         decrypted_message = self.private_key.decrypt(
