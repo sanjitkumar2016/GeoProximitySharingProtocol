@@ -122,10 +122,7 @@ class WebClient:
                 url, params=params, headers=headers, verify=False, timeout=5
             )
             response.raise_for_status()
-            logger.info(
-                "Received rehashes for exchange with %s: %s",
-                target, response.json()
-            )
+            logger.info("Received rehashes from server for exchange with %s", target)
             rehashes = response.json()
             rehashes["latitude_rehashes"] = b64decode(rehashes["latitude_rehashes"])  # noqa: E501
             rehashes["longitude_rehashes"] = b64decode(rehashes["longitude_rehashes"])  # noqa: E501

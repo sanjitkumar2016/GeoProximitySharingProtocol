@@ -84,16 +84,22 @@ class ClientUser:
             logger.info("Invalid address for '%s'", friend_username)
             return
 
-        logger.info("Received location rehashes from '%s'", friend_username)
-
         my_latitude_rehashes = self._rehash_verification[friend_username]["latitude_rehashes"]  # noqa: E501
         my_longitude_rehashes = self._rehash_verification[friend_username]["longitude_rehashes"]  # noqa: E501
 
         latitudes_match = self._client_location.compare_hashes(
-            friend_latitude_rehashes, my_latitude_rehashes)
+            friend_latitude_rehashes, my_latitude_rehashes
+        )
         longitudes_match = self._client_location.compare_hashes(
-            friend_longitude_rehashes, my_longitude_rehashes)
+            friend_longitude_rehashes, my_longitude_rehashes
+        )
         location_matches = latitudes_match and longitudes_match
+
+        logger.info(
+            "Received location rehashes from '%s' Within radius: %s",
+            friend_username,
+            location_matches,
+        )
 
         self._rehash_verification.pop(friend_username)
         self._incoming_location_requests.pop(friend_username)
@@ -117,8 +123,11 @@ class ClientUser:
             return
         self._outgoing_location_requests.pop(friend_username)
         self._location_statuses[friend_username] = location_matches
-        logger.info("Location rehashes verified by '%s'. Within radius: %s",
-                    friend_username, location_matches)
+        logger.info(
+            "Location rehashes verified by '%s'. Within radius: %s",
+            friend_username,
+            location_matches,
+        )
 
     def add_friend(self, friend_username: str):
         if friend_username in self._friends:
