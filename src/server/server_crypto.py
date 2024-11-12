@@ -1,8 +1,7 @@
-import hashlib
 import secrets
 
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.primitives import padding, hashes
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 SALT_LENGTH = 16
@@ -16,9 +15,9 @@ class ServerCrypto:
         self._key = secrets.token_bytes(KEY_LENGTH)
 
     def hash_data(self, data):
-        h = hashlib.new('sha256')
-        h.update(data.encode() + self._salt)
-        return h.digest()
+        digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+        digest.update(data.encode() + self._salt)
+        return digest.finalize()
 
     def encrypt_data(self, data):
         iv = secrets.token_bytes(16)

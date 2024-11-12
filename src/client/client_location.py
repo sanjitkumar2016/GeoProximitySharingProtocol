@@ -27,12 +27,12 @@ class ClientLocation:
 
     def latitude_values(self, radius) -> tuple:
         latitude = (self._current_location["latitude"] + 90)
-        latitude = latitude * MILES_PER_DEGREE / radius
+        latitude = latitude * MILES_PER_DEGREE / radius / 1.5
         return self._get_state(latitude)
 
     def longitude_values(self, radius) -> tuple:
         longitude = (self._current_location["longitude"] + 180)
-        longitude = longitude * MILES_PER_DEGREE / radius
+        longitude = longitude * MILES_PER_DEGREE / radius / 1.5
         return self._get_state(longitude)
 
     def latitude_hashes(self, radius, key) -> tuple:
@@ -51,11 +51,11 @@ class ClientLocation:
 
     def compare_hashes(self, hashes_1: tuple, hashes_2: tuple) -> bool:
         down_1, nearest_1, up_1 = hashes_1
-        d2, n2, u2 = hashes_2
+        down_2, nearest_2, up_2 = hashes_2
         # Check rounded values and nearest values
-        if nearest_1 in hashes_2 or n2 in hashes_1:
+        if nearest_1 in hashes_2 or nearest_2 in hashes_1:
             return True
         # Check for same down/up values
-        if down_1 == d2 or up_1 == u2:
+        if down_1 == down_2 or up_1 == up_2:
             return True
         return False
