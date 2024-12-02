@@ -11,6 +11,31 @@ app = Flask(__name__)
 
 
 class WebServer:
+    """
+    A class to represent a web server for handling user and friend management.
+
+    Attributes:
+        server_store (object): An instance of the server store to handle data operations.
+        host (str): The hostname or IP address to bind the server to. Defaults to "127.0.0.1".
+        port (int): The port number to bind the server to. Defaults to 8080.
+        certfile (str): The path to the SSL certificate file. Defaults to "cert.pem".
+        keyfile (str): The path to the SSL key file. Defaults to "key.pem".
+
+    Methods:
+        create_user():
+            Handles the creation of a new user.
+        add_friend():
+            Handles sending a friend request to another user.
+        accept_friend_request():
+            Handles accepting a friend request from another user.
+        address_request():
+            Handles retrieving the address of a user.
+        accept_location_request():
+            Handles accepting a location request from another user.
+        start():
+            Starts the web server with SSL context.
+    """
+
     def __init__(
         self,
         server_store,
@@ -50,9 +75,7 @@ class WebServer:
             if not public_key:
                 return "Invalid public key", 400
 
-            auth_token = self.server_store.post_create_user(
-                username, host, int(port), public_key
-            )
+            auth_token = self.server_store.post_create_user(username, host, int(port), public_key)
             if not auth_token:
                 return "User already exists", 400
 
@@ -130,10 +153,10 @@ class WebServer:
         @app.route("/accept_location_request", methods=["POST"])
         def accept_location_request():
             query_params = request.args
-            logger.info("Handling accept location request with params: %s", query_params)  # noqa: E501
+            logger.info("Handling accept location request with params: %s", query_params)
             username = query_params.get("username")
-            latitude_hashes = b64decode(query_params.get("latitude_hashes")).decode("utf-8")  # noqa: E501
-            longitude_hashes = b64decode(query_params.get("longitude_hashes")).decode("utf-8")  # noqa: E501
+            latitude_hashes = b64decode(query_params.get("latitude_hashes")).decode("utf-8")
+            longitude_hashes = b64decode(query_params.get("longitude_hashes")).decode("utf-8")
 
             authorization = request.headers.get("Authorization")
             if not authorization:
@@ -162,6 +185,19 @@ class WebServer:
             return jsonify(response), 200
 
     def start(self):
+        """
+        Starts the web server with SSL context.
+
+        This method initializes the SSL context using the provided certificate
+        and key files, and then starts the Flask application on the specified
+        host and port.
+
+        Raises:
+            Exception: If there is an issue starting the server.
+
+        Logs:
+            Info: Logs the server start message with the host and port details.
+        """
         context = (self.certfile, self.keyfile)
         logger.info("Starting server at https://%s:%d", self.host, self.port)
         app.run(host=self.host, port=self.port, ssl_context=context)
