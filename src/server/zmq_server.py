@@ -8,8 +8,24 @@ from cryptography.hazmat.primitives.hmac import HMAC
 
 
 class ZMQServer:
-    """ """
+    """
+    A server class that uses ZeroMQ for sending encrypted messages and provides utility methods for key management and hashing.
 
+    Attributes:
+        context (zmq.Context): The ZeroMQ context for creating sockets.
+
+    Methods:
+        send_message(host: str, port: int, message: str, recipient_public_key: rsa.RSAPublicKey):
+            Sends an encrypted message to a specified host and port using ZeroMQ.
+        public_key_from_pem(pem: bytes) -> rsa.RSAPublicKey:
+            Load a public key from a PEM-encoded byte string.
+        public_key_to_pem(public_key: rsa.RSAPublicKey) -> bytes:
+            Converts an RSA public key to PEM format.
+        generate_key() -> bytes:
+            Generates a cryptographic key.
+        hash_state(state: tuple, key: bytes) -> tuple:
+            Hashes each element of the given state tuple using HMAC with the provided key and SHA256 algorithm
+    """
     def __init__(self):
         self.context = zmq.Context()
 
