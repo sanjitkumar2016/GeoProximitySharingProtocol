@@ -80,7 +80,7 @@ class ClientLocation:
             tuple: The state corresponding to the adjusted latitude value.
         """
         latitude = self._current_location["latitude"] + 90
-        latitude = latitude * MILES_PER_DEGREE / radius / 1.5
+        latitude = latitude * MILES_PER_DEGREE / radius
         return self._get_state(latitude)
 
     def longitude_values(self, radius: float) -> tuple:
@@ -94,7 +94,7 @@ class ClientLocation:
             tuple: A tuple representing the state based on the calculated longitude value.
         """
         longitude = self._current_location["longitude"] + 180
-        longitude = longitude * MILES_PER_DEGREE / radius / 1.5
+        longitude = longitude * MILES_PER_DEGREE / radius
         return self._get_state(longitude)
 
     def latitude_hashes(self, radius: float, key: bytes) -> tuple:
