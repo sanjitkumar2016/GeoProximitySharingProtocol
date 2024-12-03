@@ -26,6 +26,7 @@ class ZMQServer:
         hash_state(state: tuple, key: bytes) -> tuple:
             Hashes each element of the given state tuple using HMAC with the provided key and SHA256 algorithm
     """
+
     def __init__(self):
         self.context = zmq.Context()
 
